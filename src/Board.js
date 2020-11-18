@@ -1,4 +1,5 @@
 import React from 'react';
+import Square from "./Square";
 
 /**
  * Calcule le gagnant.
@@ -16,10 +17,30 @@ function calculateWinner(squares) {
         [0, 4, 8],
         [2, 4, 6],
     ];
-    // TODO
-    // Test si une des combinaisons gagnantes est satisfaites.
-    return null;
+    console.log("calculating... received squares:", squares);
+    let winner = null;
+    lines.forEach(validLine => {
+        if(
+            squares[validLine[0]] === squares[validLine[1]] &&
+            squares[validLine[1]] === squares[validLine[2]]
+        ) {
+            winner = squares[validLine[0]];
+            console.log("Winner: ", winner);
+        }
+    });
+    return winner;
 }
+
+const initialState = {
+    squares: Array(9).fill(null),
+    redIsNext: true,
+    redWins: 0,
+    blueWins: 0,
+    vsBot: false,
+    gameOver: false,
+    winner: null,
+}
+
 /**
  * Composant désignant la grille.
  */
@@ -33,16 +54,18 @@ class Board extends React.Component {
      * *blueWins*: compteur définissant le nombre de victoire de "blue", initialisé à 0.
      * *vsBot*: Boolean définissant si le mode singleplayer est activé ou pas, initialisé à false.
      */
+
+
     constructor(){
         super();
-        //TODO
+        this.state = initialState;
     }
 
     /**
      * Réinitialise la grille et les scores des joueurs.
      */
     resetGame() {
-        // TODO
+        this.setState(initialState);
     }
 
     /**
@@ -50,7 +73,22 @@ class Board extends React.Component {
      * @param winner le gagnant de la partie. Valeur possible: "red" | "blue".
      */
     incrementScore(winner) {
-        // TODO
+        const {redWins, blueWins} = this.state;
+        switch (winner) {
+            case "red":
+                this.setState({redWins: redWins + 1});
+                break;
+            case "blue":
+                this.setState({blueWins: blueWins + 1});
+                break;
+            default:
+                break;
+        }
+    }
+
+    shuffle = (array) => {
+        array.sort(() => Math.random() - 0.5);
+        return array;
     }
 
     /**
@@ -59,7 +97,19 @@ class Board extends React.Component {
      * @return indice d'une case vide du tableau squares.
      */
     random(squares){
-        // TODO
+        let available = [];
+        squares.forEach((square, index) => {
+           if(square === null){
+               available.push(index);
+           }
+        });
+        if(available.length === 0) {
+            console.log("Aucune case vide pour jouer");
+            return null;
+        } else {
+            available = this.shuffle(available);
+            return available[0];
+        }
     }
 
     /**
@@ -71,29 +121,85 @@ class Board extends React.Component {
      * @param i Indice de la case
      */
     handleClick(i) {
-        //TODO
+        const {redIsNext, squares, vsBot, gameOver} = this.state;
+        if(gameOver) return null;
+        let winner = calculateWinner(squares);
+        if(!!winner || squares[i] !== null) return null;
+        let newSquares = Array.from(squares);
+        const currentPlayer = redIsNext ? "red" : "blue";
+
+        if (vsBot) {
+            newSquares[i] = currentPlayer;
+            const winner2 = calculateWinner(newSquares);
+            console.log("has winner2:", winner2);
+            if(!!winner2) {
+                this.setState({
+                    gameOver: true,
+                    winner: winner2,
+                    squares: newSquares,
+                })
+            } else {
+                this.setState({
+                    squares: newSquares,
+                    redIsNext: !redIsNext,
+                });
+            }
+        } else {
+            newSquares[i] = "red";
+            const winner3 = calculateWinner(newSquares);
+            if(!!winner3) {
+                this.setState({
+                    gameOver: true,
+                    winner: winner3,
+                    squares: newSquares,
+                })
+            } else {
+                const AImove = this.random(newSquares);
+                newSquares[AImove] = "blue";
+                const winner4 = calculateWinner(newSquares);
+                console.log("AI move: square ", AImove);
+                if(!!winner4) {
+                    this.setState({
+                        gameOver: true,
+                        winner: winner4,
+                        squares: newSquares,
+                    })
+                } else {
+                    this.setState({
+                        squares: newSquares,
+                    });
+                }
+
+            }
+        }
     }
 
     /**
      * Réinitialise la grille et les scores des joueurs lors du clique sur le bouton reset.
      */
     handleReset = () => {
-        // TODO
+        this.resetGame();
+    };
+
+    switchGameMode = () => {
+        const {vsBot} = this.state;
+        this.setState({vsBot: !vsBot});
+    };
+
+    handleChangeGameMode = () => {
+        this.resetGame();
+        this.switchGameMode();
     };
 
     /**
      * Réinitialise la grille et les scores des joueurs et active le mode vsBot lors du clique sur le bouton singleplayer.
      */
-    handleSinglePlayerButton = () => {
-        // TODO
-    }
+    handleSinglePlayerButton = () => {}
 
     /**
      * Réinitialise la grille et les scores des joueurs et désactive le mode vsBot lors du clique sur le bouton multiplayer.
      */
-    handleMultiPlayerButton = () => {
-        // TODO
-    }
+    handleMultiPlayerButton = () => {}
 
     /**
      * Retourne la grille (*Square*) d'indice *i* en lui passant la valeur de la case correspondante comme prop.
@@ -101,7 +207,14 @@ class Board extends React.Component {
      * @return un élément *<Square>*.
      */
     renderSquare(i) {
-        //TODO
+        const {squares} = this.state;
+        const squareColor = squares[i];
+        return (
+          <Square
+              bgColor={squareColor}
+              onClick={this.handleClick.bind(this, i)}
+          />
+        );
     }
 
     /**
@@ -109,46 +222,65 @@ class Board extends React.Component {
      * @return un élément <div> représentant le jeu.
      */
     render() {
+        const {redWins, blueWins, squares, vsBot, gameOver, winner} = this.state;
+        const firstRow = squares.slice(0,3),
+            secondRow = squares.slice(3,6),
+            thirdRow = squares.slice(6,9);
+        const modeText = vsBot ? "single player" : "multiplayer";
         return (
             <div>
                 <div className="scoreboard">
-                    <div className="red-score"><p>{/*TODO*/}</p></div>
-                    <div className="blue-score"><p>{/*TODO*/}</p></div>
+                    <div className="red-score"><p>{redWins}</p></div>
+                    <div className="blue-score"><p>{blueWins}</p></div>
                 </div>
                 <input
                     type="button"
                     className="reset"
-                    //TODO click event
+                    onClick={this.handleReset}
                     value="Reset"
                 >
                 </input>
                 <input
                     type="button"
                     className="handleSinglePlayerButton"
-                    //TODO click event
+                    onClick={this.handleChangeGameMode}
                     value="singleplayer"
                 >
                 </input>
                 <input
                     type="button"
                     className="handleMultiPlayerButton"
-                    //TODO click event
-                    value="multipalyer"
+                    onClick={this.handleChangeGameMode}
+                    value="multiplayer"
                 >
                 </input>
+                <div>Mode: {modeText}</div>
+
                 <div className="grid">
                     <div className="status">{/*TODO*/}</div>
                     {/*Chaque div de class board-row contient 3 éléments Square dans l'ordre.*/}
                     <div className="board-row">
-                        {/*TODO*/}
+                        {
+                            firstRow.map((_, i) => this.renderSquare(i))
+                        }
                     </div>
                     <div className="board-row">
-                        {/*TODO*/}
+                        {
+                            secondRow.map((_, i) => this.renderSquare(i+3))
+                        }
                     </div>
                     <div className="board-row">
-                        {/*TODO*/}
+                        {
+                            thirdRow.map((_, i) => this.renderSquare(i+6))
+                        }
                     </div>
                 </div>
+                <br/>
+                {
+                    gameOver && (
+                        <div>Gagnant: {winner}</div>
+                    )
+                }
             </div>
         );
     }

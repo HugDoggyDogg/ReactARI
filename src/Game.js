@@ -1,4 +1,5 @@
 import React from 'react';
+import Board from "./Board";
 
 /**
  * Composant désignant le jeu.
@@ -8,7 +9,7 @@ class Game extends React.Component {
     return (
         <div className="game">
           <div className="game-board">
-            {/*TODO Appel au composant Board.*/}
+            <Board />
           </div>
         </div>
     );
